@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fast:
+    # spec/compiler-contract tests — no torch needed, runs in seconds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy PyYAML
+      - run: python -m compileall nanoforge
+      - run: python tests/run_all.py --fast
+
+  full:
+    # the whole suite: spec → train → registry → export → agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install numpy PyYAML
+      - run: python tests/run_all.py

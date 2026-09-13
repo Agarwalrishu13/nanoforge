@@ -1,0 +1,18 @@
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# user work — projects, runs, checkpoints, exports
+workspace/
+**/runs/
+*.pt
+*.bin
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

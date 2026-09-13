@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nanoforge — offline studio</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▲</text></svg>">
+</head>
+<body>
+<header>
+  <div class="logo">nanoforge<span class="ver" id="ver"></span></div>
+  <div class="badge offline" title="no accounts, no API keys, no telemetry">● offline</div>
+  <div class="spacer"></div>
+  <select id="projectSelect" title="project"></select>
+  <button id="btnNewProject" class="ghost">+ new project</button>
+</header>
+
+<div id="layout">
+  <aside>
+    <div class="side-block">
+      <h3>architecture</h3>
+      <div id="sideStack" class="stack-note">—</div>
+      <div id="sideParams" class="param-note">—</div>
+      <div id="sideExport" class="export-badge"></div>
+    </div>
+    <div class="side-block">
+      <h3>files</h3>
+      <ul id="fileList" class="file-list"></ul>
+    </div>
+    <div class="side-block">
+      <h3>runs</h3>
+      <ul id="runList" class="file-list"></ul>
+    </div>
+  </aside>
+
+  <main>
+    <nav id="tabs">
+      <button data-tab="spec" class="tab active">Spec</button>
+      <button data-tab="canvas" class="tab">Canvas</button>
+      <button data-tab="train" class="tab">Train</button>
+      <button data-tab="runs" class="tab">Runs</button>
+      <button data-tab="ship" class="tab">Ship</button>
+      <button data-tab="agent" class="tab">Agent</button>
+    </nav>
+
+    <!-- SPEC -->
+    <section id="tab-spec" class="tab-page active">
+      <div class="tab-head">
+        <span>model.nanospec <em>— the source of truth; the canvas is a view over it</em></span>
+        <button id="btnSaveSpec">Save</button>
+      </div>
+      <div id="specValidation" class="validation"></div>
+      <textarea id="specEditor" spellcheck="false"></textarea>
+    </section>
+
+    <!-- CANVAS -->
+    <section id="tab-canvas" class="tab-page">
+      <div class="tab-head">
+        <span>architecture canvas <em>— edits write model.nanospec live</em></span>
+      </div>
+      <div id="canvasStack"></div>
+      <div class="canvas-add">
+        <span>add block:</span>
+        <button class="ghost" data-add="attention">attention</button>
+        <button class="ghost" data-add="swiglu_ffn">swiglu_ffn</button>
+        <button class="ghost" data-add="gelu_ffn">gelu_ffn</button>
+        <button class="ghost" data-add="conv1d">conv1d</button>
+        <button class="ghost" data-add="rmsnorm">rmsnorm</button>
+      </div>
+      <div id="canvasValidation" class="validation"></div>
+      <div class="canvas-note">[attention → swiglu_ffn] pairs are exportable to nanollama.c;
+        other blocks train in the studio but refuse to ship — by design.</div>
+    </section>
+
+    <!-- TRAIN -->
+    <section id="tab-train" class="tab-page">
+      <div class="train-controls">
+        <label>steps <input id="tSteps" type="number" min="10"></label>
+        <label>batch <input id="tBatch" type="number" min="1"></label>
+        <label>lr <input id="tLr" type="number" step="0.0001" min="0.00001"></label>
+        <label>device
+          <select id="tDevice"><option value="">auto</option><option value="cpu">cpu</option><option value="cuda">cuda</option></select>
+        </label>
+        <button id="btnTrain">Train</button>
+        <button id="btnStop" class="danger" disabled>Stop</button>
+        <span id="trainStatus" class="train-status"></span>
+      </div>
+      <canvas id="lossChart" width="900" height="260"></canvas>
+      <div id="trainLegend" class="legend"></div>
+    </section>
+
+    <!-- RUNS -->
+    <section id="tab-runs" class="tab-page">
+      <div class="tab-head"><span>run registry <em>— every run is a folder you can open</em></span></div>
+      <div id="runDetail" class="run-detail">select a run in the sidebar</div>
+    </section>
+
+    <!-- SHIP -->
+    <section id="tab-ship" class="tab-page">
+      <div class="ship-controls">
+        <select id="shipRun"></select>
+        <button id="btnExport">Export → nanollama.c</button>
+        <span id="shipStatus" class="train-status"></span>
+      </div>
+      <div id="exportOut" class="export-out"></div>
+      <pre id="qualityReport" class="report"></pre>
+    </section>
+
+    <!-- AGENT -->
+    <section id="tab-agent" class="tab-page">
+      <div id="chatLog"></div>
+      <div class="chat-input">
+        <input id="chatBox" placeholder="explain my spec · suggest parameters · why did it fail?">
+        <button id="btnChat">Send</button>
+      </div>
+      <div class="chat-note">the agent can read anything and write <b>only</b> model.nanospec —
+        writes appear as diffs you apply yourself. no API behind it: it runs here.</div>
+    </section>
+  </main>
+</div>
+
+<div id="newProjectModal" class="modal hidden">
+  <div class="modal-box">
+    <h3>new project</h3>
+    <label>name <input id="npName" placeholder="my-first-model"></label>
+    <label>template
+      <select id="npTemplate"></select>
+    </label>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal()">cancel</button>
+      <button id="btnCreateProject">create</button>
+    </div>
+    <div id="npError" class="validation"></div>
+  </div>
+</div>
+
+<div id="diffModal" class="modal hidden">
+  <div class="modal-box wide">
+    <h3>agent proposes a spec change</h3>
+    <pre id="diffView" class="diff"></pre>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal()">dismiss</button>
+      <button id="btnApplyDiff">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+torch>=2.0
+numpy>=1.24
+PyYAML>=6.0
+
+# optional — only needed for `tokenizer: bpe` projects:
+# sentencepiece>=0.1.99

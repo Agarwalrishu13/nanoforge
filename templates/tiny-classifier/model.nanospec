@@ -1,0 +1,29 @@
+name: tiny-classifier
+tokenizer: byte
+model:
+  dim: 32
+  hidden: 64
+  heads: 4
+  seq_len: 1
+  head: classification
+  n_classes: 3
+  pool: mean
+  layers:
+    - kind: gelu_ffn
+      params:
+        hidden: 64
+    - kind: gelu_ffn
+      params:
+        hidden: 64
+train:
+  steps: 200
+  batch: 64
+  lr: 0.01
+  warmup: 20
+  eval_every: 50
+  val_split: 0.15
+data:
+  path: data/train.csv
+  label_column: label
+export:
+  formats: [nanollama]
