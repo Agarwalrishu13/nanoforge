@@ -16,21 +16,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
-MODULES = ["test_spec", "test_compiler", "test_export", "test_e2e_smoke"]
+# module name -> whether it needs torch
+MODULES = [
+    ("test_spec", False),
+    ("test_compiler", True),
+    ("test_export", True),
+    ("test_e2e_smoke", True),
+]
 
 
 def run_all(fast: bool = False, verbose: bool = False) -> list[str]:
     failures = []
     if HERE not in sys.path:
         sys.path.insert(0, HERE)  # test_* modules import as top-level names
-    for mod_name in MODULES:
+    has_torch = importlib.util.find_spec("torch") is not None
+    for mod_name, needs_torch in MODULES:
+        if needs_torch and (fast or not has_torch):
+            if verbose:
+                print(f"skip {mod_name} (--fast / no torch)")
+            continue
         try:
             mod = importlib.import_module(mod_name)
-        except ImportError as e:
-            if fast and "torch" in str(e):
-                if verbose:
-                    print(f"skip {mod_name} (--fast, needs torch)")
-                continue
+        except ImportError:
             raise
         for name in sorted(dir(mod)):
             if not name.startswith("test_"):
