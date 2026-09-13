@@ -14,6 +14,7 @@ engine written by the same author.
 No accounts. No API keys. No telemetry. Airplane-mode approved.
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![ci](https://github.com/Agarwalrishu13/nanoforge/actions/workflows/ci.yml/badge.svg)](https://github.com/Agarwalrishu13/nanoforge/actions/workflows/ci.yml)
 [![python](https://img.shields.io/badge/python-3.10+-58a6ff.svg)]()
 [![dependencies](https://img.shields.io/badge/runtime%20deps-torch%20·%20numpy%20·%20pyyaml-f0883e.svg)]()
 [![engine](https://img.shields.io/badge/ships%20to-nanollama.c-f0883e.svg)](https://github.com/Agarwalrishu13/nanollama.c)
