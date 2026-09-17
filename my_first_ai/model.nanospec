@@ -1,0 +1,21 @@
+name: tiny-char-lm
+tokenizer: byte
+model:
+  dim: 64
+  hidden: 176
+  heads: 4
+  seq_len: 128
+  n_layers: 3
+train:
+  steps: 300
+  batch: 32
+  lr: 0.003
+  warmup: 30
+  eval_every: 50
+  sample_every: 100
+  val_split: 0.1
+data:
+  path: data/stories.txt
+export:
+  formats: [nanollama]
+  quantize: [int8]
