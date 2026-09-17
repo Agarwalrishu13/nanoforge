@@ -94,27 +94,79 @@ def cmd_train(args):
     project = resolve_project(args.project)
     overrides = {k: v for k, v in
                  (("steps", args.steps), ("batch", args.batch), ("lr", args.lr)) if v}
+    
+    # Show friendly pre-flight check
+    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    print("Pre-flight check...")
+    print(f"  - Device: {device}")
+    if device == "cpu":
+        print("  [Warning] Training on CPU will be slower. For faster training, use a GPU with CUDA support.")
+    print(f"  - Project: {os.path.basename(project)}")
+    
+    # Load spec to show what we're training
+    try:
+        from .spec import load_spec
+        spec = load_spec(os.path.join(project, "model.nanospec"))
+        n_params = sum(p.numel() for p in compile_spec(spec, spec.vocab_size).parameters())
+        print(f"  - Model: {spec.name} ({n_params:,} parameters)")
+        print(f"  - Architecture: {spec.stack_summary()}")
+        print(f"  - Training: {spec.train.steps} steps, batch {spec.train.batch}, lr {spec.train.lr}")
+    except Exception as e:
+        print(f"  [Warning] Could not load spec: {e}")
+        spec = None
+    
+    print("\nStarting training...")
     run_dir = MANAGER.start(project, os.path.join(project, "model.nanospec"),
-                            overrides=overrides or None, device=args.device)
-    print(f"run started: {run_dir}  (device: {args.device or 'auto'})")
+                            overrides=overrides or None, device=device)
+    print(f"  Run folder: {os.path.basename(run_dir)}")
+    print("  (Press Ctrl+C to stop early - your checkpoint will be saved)\n")
+    
     seen = 0
-    while MANAGER.status()["running"] or seen == 0:
-        metrics = registry.read_metrics(run_dir)
-        for rec in metrics[seen:]:
-            kind = "eval " if "val_loss" in rec or "val_accuracy" in rec else "train"
-            pretty = " | ".join(f"{k}={v}" for k, v in rec.items())
-            print(f"  [{kind}] {pretty}")
-        seen = len(metrics)
-        time.sleep(0.5)
+    total_steps = spec.train.steps if spec else 0
+    try:
+        while MANAGER.status()["running"] or seen == 0:
+            metrics = registry.read_metrics(run_dir)
+            for rec in metrics[seen:]:
+                step = rec.get("step", "?")
+                progress = f"[{step}/{total_steps}]" if total_steps else f"[step {step}]"
+                
+                # Format metrics nicely
+                if "loss" in rec:
+                    loss = rec["loss"]
+                    status = "[OK]" if loss < 2.0 else "[Warn]" if loss < 3.0 else "[High]"
+                    print(f"  {status} {progress} loss={loss:.4f}")
+                elif "val_loss" in rec:
+                    print(f"  [Eval] {progress} val_loss={rec['val_loss']:.4f}")
+                elif "val_accuracy" in rec:
+                    print(f"  [Acc] {progress} accuracy={rec['val_accuracy']:.2%}")
+            seen = len(metrics)
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        print("\n\nStopped by user. Saving checkpoint...")
+        time.sleep(2)  # Give manager time to save
+    
     _, run = registry.read_run(run_dir)
     if run["status"] == "failed":
-        print(f"\nrun FAILED: {run['error']}")
-        print("ask the agent: python -m nanoforge agent \"why did it fail?\" --project " + project)
+        print(f"\nTraining FAILED: {run['error']}")
+        print("\nTry asking the agent for help:")
+        print(f"   python -m nanoforge agent \"why did it fail?\" --project {project}")
+        print("\nCommon fixes:")
+        print("   - Reduce batch size if you see 'out of memory'")
+        print("   - Lower learning rate if you see 'NaN' or 'loss exploded'")
+        print("   - Check data file path in model.nanospec")
         sys.exit(1)
     m = run["metrics"]
-    print(f"\ndone in {m.get('wall_seconds')}s — {m.get('n_params'):,} params, "
-          f"best val: {m.get('best_val')}")
-    print(f"next: python -m nanoforge export {project} --run {run['id']}")
+    best_val = m.get('best_val', 'N/A')
+    if isinstance(best_val, float):
+        best_val = f"{best_val:.4f}"
+    print(f"\nTraining complete!")
+    print(f"  Time: {m.get('wall_seconds', 0):.1f}s")
+    print(f"  Parameters: {m.get('n_params', 0):,}")
+    print(f"  Best validation: {best_val}")
+    print(f"\nNext steps:")
+    print(f"   - Test it:     python -m nanoforge generate {project} -p \"Once upon a time\"")
+    print(f"   - Export it:   python -m nanoforge export {project} --run {run['id']}")
+    print(f"   - View logs:   cat {os.path.join(run_dir, 'metrics.jsonl')}")
     return run
 
 
@@ -123,22 +175,35 @@ def cmd_eval(args):
     run, run_dir, spec, model, data, _ = load_run_model(project, args.run)
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     ev = evaluate(model, data, spec, device, spec.train.eval_batches)
-    print(f"run {run['id']} (step {run['metrics'].get('steps_done')}):")
+    print(f"Evaluating run {run['id']} (step {run['metrics'].get('steps_done')})...")
+    print(f"  Device: {device}")
+    print("-" * 50)
     for k, v in ev.items():
-        print(f"  {k}: {v:.4f}" if isinstance(v, float) else f"  {k}: {v}")
+        if isinstance(v, float):
+            print(f"  {k}: {v:.4f}")
+        else:
+            print(f"  {k}: {v}")
+    print("-" * 50)
     return ev
 
 
 def cmd_generate(args):
     project = resolve_project(args.project)
-    _, _, spec, model, _, tok = load_run_model(project, args.run)
+    run, _, spec, model, _, tok = load_run_model(project, args.run)
     if spec.model.head != "lm":
-        sys.exit("error: generate is for language models — try `eval` for classifiers")
+        sys.exit("error: generate is for language models - try `eval` for classifiers")
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    print(f"Generating from run {run['id']}...")
+    print(f"  Prompt: \"{args.prompt}\"")
+    print(f"  Device: {device}")
+    print("-" * 50)
     ids = tok.encode(args.prompt)
     out = model.generate(ids, max_new=args.tokens, temperature=args.temperature, top_k=40)
-    print(tok.decode(out))
+    text = tok.decode(out)
+    print(text)
+    print("-" * 50)
+    print(f"\nGenerated {len(out) - len(ids)} new tokens")
 
 
 def cmd_export(args):
@@ -148,16 +213,22 @@ def cmd_export(args):
     if not run_id:
         latest = registry.latest_run(project)
         if not latest:
-            sys.exit("error: no runs in this project's registry yet — train first")
+            sys.exit("error: no runs in this project's registry yet - train first")
         run_id = latest["id"]
         print(f"(no --run given; exporting latest: {run_id})")
+    
+    print("Exporting model to nanollama.c format...")
     res = export_run(project, run_id)
-    for f in res["files"].values():
-        print(f"shipped: {f} ({os.path.getsize(f) / 1e6:.2f} MB)")
-    print("\nrun it on the engine:")
-    print(f"  nanollama run -m {res['files']['fp32']} -i \"Once upon a time\"   # add -q for int8")
+    print("\nExported files:")
+    for fmt, f in res["files"].items():
+        size_mb = os.path.getsize(f) / 1e6
+        print(f"  [{fmt.upper()}] {os.path.basename(f)} ({size_mb:.2f} MB)")
+    print("\nTo run on nanollama.c:")
+    print(f"  nanollama run -m {res['files']['fp32']} -i \"Once upon a time\"")
+    if "int8" in res["files"]:
+        print(f"  nanollama run -m {res['files']['int8']} -i \"Once upon a time\" -q  # quantized")
     if res["report"]:
-        print(f"\n{res['report']}")
+        print(f"\nQuality Report:\n{res['report']}")
     return res
 
 

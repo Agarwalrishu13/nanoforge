@@ -1,0 +1,63 @@
+{
+  "id": "20260917-092619-tiny-char-lm",
+  "project": "my_first_ai",
+  "status": "done",
+  "created": 1789637179.673628,
+  "spec": {
+    "name": "tiny-char-lm",
+    "tokenizer": "byte",
+    "bpe_model": null,
+    "model": {
+      "vocab": null,
+      "dim": 64,
+      "hidden": 176,
+      "heads": 4,
+      "kv_heads": 4,
+      "seq_len": 128,
+      "n_layers": 3,
+      "head": "lm",
+      "n_classes": null,
+      "pool": "mean",
+      "tied": true,
+      "rope_base": 10000.0,
+      "rmsnorm_eps": 1e-05,
+      "dropout": 0.0
+    },
+    "train": {
+      "steps": 300,
+      "batch": 32,
+      "lr": 0.003,
+      "warmup": 30,
+      "schedule": "cosine",
+      "weight_decay": 0.01,
+      "grad_clip": 1.0,
+      "eval_every": 50,
+      "eval_batches": 20,
+      "sample_every": 100,
+      "val_split": 0.1,
+      "seed": 0
+    },
+    "data": {
+      "path": "data/stories.txt",
+      "label_column": "label"
+    },
+    "export": {
+      "formats": [
+        "nanollama"
+      ],
+      "quantize": [
+        "int8"
+      ]
+    }
+  },
+  "config_note": "{'steps': 10}",
+  "metrics": {
+    "steps_done": 10,
+    "best_val": 4.747292566299438,
+    "wall_seconds": 4.0,
+    "n_params": 167552
+  },
+  "error": null,
+  "n_features": null,
+  "vocab_size": 259
+}

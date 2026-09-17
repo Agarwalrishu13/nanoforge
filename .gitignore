@@ -1,18 +1,54 @@
-# python
+```
+# Compiled and build artifacts
+*.pyc
 __pycache__/
-*.py[cod]
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.class
+*.out
+
+# Dependencies
 .venv/
 venv/
+.env
+.env.local
+*.env.*
+
+# Distribution / build artifacts
+dist/
+build/
+target/
 *.egg-info/
 
-# user work — projects, runs, checkpoints, exports
-workspace/
-**/runs/
-*.pt
-*.bin
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
 
-# os / editor
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
+
+# Testing and coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Package managers
+node_modules/
+.npm/
+.yarn/
+.pip/
+```

@@ -1,0 +1,25 @@
+{
+  "run": "20260917-092619-tiny-char-lm",
+  "step": 10,
+  "config": {
+    "vocab": null,
+    "dim": 64,
+    "hidden": 176,
+    "heads": 4,
+    "kv_heads": 4,
+    "seq_len": 128,
+    "n_layers": 3,
+    "head": "lm",
+    "n_classes": null,
+    "pool": "mean",
+    "tied": true,
+    "rope_base": 10000.0,
+    "rmsnorm_eps": 1e-05,
+    "dropout": 0.0
+  },
+  "files": [
+    "model.nanollama.bin"
+  ],
+  "engine": "github.com/Agarwalrishu13/nanollama.c",
+  "usage": "nanollama run -m model.nanollama.bin -i \"your prompt\"   (add -q for the engine's int8 in-memory quantization)"
+}
